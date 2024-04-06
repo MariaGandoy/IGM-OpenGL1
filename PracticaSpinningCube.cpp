@@ -80,21 +80,27 @@ int main() {
     "uniform mat4 mv_matrix;"
     "uniform mat4 proj_matrix;"
 
+    "in vec2 tex_coord;"
+    "out vec2 vs_tex_coord;"
+
     "void main() {"
     "  gl_Position = proj_matrix * mv_matrix * v_pos;"
     "  vs_color = v_pos * 2.0 + vec4(0.4, 0.4, 0.4, 0.0);"
+    "  vs_tex_coord = tex_coord;"
     "}";
 
   // Fragment Shader
   const char* fragment_shader =
     "#version 130\n"
 
-    "out vec4 frag_col;"
+    "out vec4 frag_col[2];"
 
     "in vec4 vs_color;"
-
+    "in vec2 vs_tex_coord;"
+    "uniform sampler2D theTexture;"
     "void main() {"
-    "  frag_col = vs_color;"
+    "  frag_col[0] = vs_color;"
+    "  frag_col[1] = texture(theTexture, vs_tex_coord);"
     "}";
 
   // Shaders compilation
@@ -169,7 +175,19 @@ int main() {
     -0.25f, -0.25f, -0.25f, // 1
      0.25f, -0.25f,  0.25f, // 5
 
+    
      0.25f,  0.25f,  0.25f, // 4
+     0.25f,  0.25f, -0.25f, // 3
+    -0.25f,  0.25f,  0.25f, // 7
+
+    -0.25f,  0.25f, -0.25f, // 0
+    -0.25f,  0.25f,  0.25f, // 7
+     0.25f,  0.25f, -0.25f  // 3
+
+  };
+
+  float texCoords[] = {
+    0.25f,  0.25f,  0.25f, // 4
      0.25f,  0.25f, -0.25f, // 3
     -0.25f,  0.25f,  0.25f, // 7
 
@@ -179,15 +197,24 @@ int main() {
   };
 
   // Vertex Buffer Object (for vertex coordinates)
-  GLuint vbo = 0;
-  glGenBuffers(1, &vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
+  GLuint vbo[2];
+  glGenBuffers(2, vbo);
 
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
+  
   // Vertex attributes
   // 0: vertex position (x, y, z)
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
   glEnableVertexAttribArray(0);
+
+  // VBO: Texture coords
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+  // 1: vertex texCoord attribute
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(1);
 
   // Unbind vbo (it was conveniently registered by VertexAttribPointer)
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -201,36 +228,34 @@ int main() {
   mv_location = glGetUniformLocation(shader_program, "mv_matrix");
   proj_location = glGetUniformLocation(shader_program, "proj_matrix");
 
+  // Create texture object
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
 
+  // Set the texture wrapping/filtering options (on the currently bound texture object)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-// Create texture object
-glGenTextures(1, &texture);
-glBindTexture(GL_TEXTURE_2D, texture);
+  // Load image for texture
+  int width, height, nrChannels;
+  // Before loading the image, we flip it vertically because
+  // Images: 0.0 top of y-axis  OpenGL: 0.0 bottom of y-axis
+  stbi_set_flip_vertically_on_load(1);
+  unsigned char *data = stbi_load("texture.jpg", &width, &height, &nrChannels, 0);
+  // Image from http://www.flickr.com/photos/seier/4364156221
+  // CC-BY-SA 2.0
+  if (data) {
+    // Generate texture from image
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+    printf("Failed to load texture\n");
+  }
 
-// Set the texture wrapping/filtering options (on the currently bound texture object)
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-// Load image for texture
-int width, height, nrChannels;
-// Before loading the image, we flip it vertically because
-// Images: 0.0 top of y-axis  OpenGL: 0.0 bottom of y-axis
-stbi_set_flip_vertically_on_load(1);
-unsigned char *data = stbi_load("texture.jpg", &width, &height, &nrChannels, 0);
-// Image from http://www.flickr.com/photos/seier/4364156221
-// CC-BY-SA 2.0
-if (data) {
-  // Generate texture from image
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-} else {
-  printf("Failed to load texture\n");
-}
-
-// Free image once texture is generated
-stbi_image_free(data);
+  // Free image once texture is generated
+  stbi_image_free(data);
 
   // Render loop
   while(!glfwWindowShouldClose(window)) {
@@ -258,6 +283,7 @@ void render(double currentTime) {
 
   glUseProgram(shader_program);
   glBindVertexArray(vao);
+  
 
   glm::mat4 mv_matrix, proj_matrix;
 
@@ -280,6 +306,8 @@ void render(double currentTime) {
                                  (float) gl_width / (float) gl_height,
                                  0.1f, 1000.0f);
   glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(proj_matrix));
+
+  glBindTexture(GL_TEXTURE_2D, texture);
 
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }

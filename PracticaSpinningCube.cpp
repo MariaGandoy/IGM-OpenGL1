@@ -26,6 +26,7 @@ void render(double);
 
 GLuint shader_program = 0; // shader program to set render pipeline
 GLuint vao = 0; // Vertext Array Object to set input data
+GLuint vao2 = 0; // Vertext Array Object to set input data
 GLint mv_location, proj_location; // Uniforms for transformation matrices
 GLuint texture = 0; // Texture to paste on polygon
 
@@ -78,7 +79,7 @@ int main() {
     "out vec4 vs_color;"
 
     "uniform mat4 mv_matrix;"
-    "uniform mat4 proj_matrix;"
+    "uniform mat4 proj_matrix;"    
 
     "in vec2 tex_coord;"
     "out vec2 vs_tex_coord;"
@@ -97,10 +98,12 @@ int main() {
 
     "in vec4 vs_color;"
     "in vec2 vs_tex_coord;"
+
     "uniform sampler2D theTexture;"
+    
     "void main() {"
-    "  frag_col[0] = vs_color;"
     "  frag_col[1] = texture(theTexture, vs_tex_coord);"
+    "  frag_col[0] = vs_color;"    
     "}";
 
   // Shaders compilation
@@ -175,7 +178,9 @@ int main() {
     -0.25f, -0.25f, -0.25f, // 1
      0.25f, -0.25f,  0.25f, // 5
 
-    
+  };
+
+  float texSide[] = {
      0.25f,  0.25f,  0.25f, // 4
      0.25f,  0.25f, -0.25f, // 3
     -0.25f,  0.25f,  0.25f, // 7
@@ -183,10 +188,9 @@ int main() {
     -0.25f,  0.25f, -0.25f, // 0
     -0.25f,  0.25f,  0.25f, // 7
      0.25f,  0.25f, -0.25f  // 3
-
   };
 
-  float texCoords[] = {
+  float tex_coord[] = {
     0.25f,  0.25f,  0.25f, // 4
      0.25f,  0.25f, -0.25f, // 3
     -0.25f,  0.25f,  0.25f, // 7
@@ -198,23 +202,47 @@ int main() {
 
   // Vertex Buffer Object (for vertex coordinates)
   GLuint vbo[2];
-  glGenBuffers(2, vbo);
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(2, vbo);   
 
+  glBindVertexArray(vao);
+
+  // VBO: 3D vertices
   glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
-  
+  glBufferData(GL_ARRAY_BUFFER, sizeof(texSide), texSide, GL_STATIC_DRAW);
+
   // Vertex attributes
   // 0: vertex position (x, y, z)
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
   glEnableVertexAttribArray(0);
 
   // VBO: Texture coords
   glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(tex_coord), tex_coord, GL_STATIC_DRAW);
   // 1: vertex texCoord attribute
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
   glEnableVertexAttribArray(1);
+
+  // Unbind vbo (it was conveniently registered by VertexAttribPointer)
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  // Unbind vao
+  glBindVertexArray(0);
+
+  GLuint vbo2 = 0;  
+  glGenVertexArrays(1, &vao2);
+  glGenBuffers(1, &vbo2); 
+
+  glBindVertexArray(vao2);
+
+  // VBO: 3D vertices
+  glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
+
+  // Vertex attributes
+  // 0: vertex position (x, y, z)
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(0);
 
   // Unbind vbo (it was conveniently registered by VertexAttribPointer)
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -282,9 +310,9 @@ void render(double currentTime) {
   glViewport(0, 0, gl_width, gl_height);
 
   glUseProgram(shader_program);
-  glBindVertexArray(vao);
+  glBindVertexArray(vao);  
   
-
+  
   glm::mat4 mv_matrix, proj_matrix;
 
   mv_matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.0f, -4.0f));
@@ -307,8 +335,10 @@ void render(double currentTime) {
                                  0.1f, 1000.0f);
   glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(proj_matrix));
 
-  glBindTexture(GL_TEXTURE_2D, texture);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
 
+  glBindVertexArray(vao2);  
+  glBindTexture(GL_TEXTURE_2D, texture);
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 

@@ -96,17 +96,19 @@ int main() {
     "#version 130\n"
 
     "out vec4 frag_col;"
-    "out vec4 frag_col2;"
 
     "in vec4 vs_color;"
 
     "in vec2 vs_tex_coord;"
 
     "uniform sampler2D theTexture;"
+    "uniform bool applyTexture;"
     
     "void main() {"
-    "  frag_col = texture(theTexture, vs_tex_coord);"
-    "  frag_col2 = vs_color;"    
+    "  if(applyTexture) {"
+    "   frag_col = texture(theTexture, vs_tex_coord);"
+    "  } else {"
+    "   frag_col = vs_color; };"    
     "}";
 
   // Shaders compilation
@@ -316,7 +318,7 @@ void render(double currentTime) {
   glViewport(0, 0, gl_width, gl_height);
 
   glUseProgram(shader_program);
-  glBindVertexArray(vao);  
+
   glBindTexture(GL_TEXTURE_2D, texture);
   
   glm::mat4 mv_matrix, proj_matrix;
@@ -341,10 +343,16 @@ void render(double currentTime) {
                                  0.1f, 1000.0f);
   glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(proj_matrix));
 
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  GLint applyTexture = glGetUniformLocation(shader_program, "applyTexture");
+
+  glBindVertexArray(vao);  
+  glUniform1i(applyTexture, GL_TRUE);  
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  
 
   glBindVertexArray(vao2); 
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glUniform1i(applyTexture, GL_FALSE);  
+  glDrawArrays(GL_TRIANGLES, 0, 32);
 }
 
 void processInput(GLFWwindow *window) {

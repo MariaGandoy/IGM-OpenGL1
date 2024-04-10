@@ -195,15 +195,14 @@ int main() {
      0.25f,  0.25f, -0.25f  // 3
   };
 
-  //NO SON ASÍ LAS COORDENADAS DE LA TEXTURA
   float texCoords[] = {
-     0.25f,  0.25f, // 4
-     0.25f, -0.25f, // 3
-    -0.25f,  0.25f, // 7
+     1.0f,  1.0f, // 4
+     1.0f,  0.0f, // 3
+     0.0f,  1.0f, // 7
 
-    -0.25f, -0.25f, // 0
-    -0.25f,  0.25f, // 7
-     0.25f, -0.25f  // 3
+     0.0f,  0.0f, // 0
+     0.0f,  1.0f, // 7
+     1.0f,  0.0f  // 3
   };
 
   // Vertex Buffer Object (for vertex coordinates)
